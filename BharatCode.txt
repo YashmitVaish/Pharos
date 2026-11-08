@@ -1,0 +1,52 @@
+Project: Pharos
+Tagline: A lighthouse for your Linux configs. Understand your system before you change it.
+Author: Yashmit Vaish (GitHub: @YashmitVaish)
+Repository: https://github.com/YashmitVaish/pharos
+Event: BharatCode Build League 2026
+Direction: Coding & developer tools
+Format: Command-line tool for Ubuntu (Python)
+
+WHAT IT IS
+Pharos is a lightweight AI helper that lives in the terminal. It reads
+Linux config files, explains what each setting does and which ones are
+risky, investigates problems read-only, and proposes fixes as diffs.
+It never changes a file without a visible diff, an automatic backup and
+the user's explicit approval. "pharos undo" restores the last backup.
+
+WHO IT IS FOR
+Students on a fresh Ubuntu install, new developers, and anyone who is
+afraid to edit files under /etc or their dotfiles.
+
+HOW BHARATCODE IS USED
+- Every model call (explaining files, diagnosing symptoms, proposing
+  diffs, tool calls) goes through the BharatCode model API.
+- Model(s) used: TODO: fill in the BharatCode model name(s).
+- The model is behind one small interface (pharos/model.py).
+- Secrets (private keys, tokens, .env values, password fields) are
+  redacted locally before any request is sent. "--dry-run" shows exactly
+  what would be sent.
+
+SAFETY DESIGN
+- Read-only by default; every write needs approval.
+- Unified diff plus a one-line reason for every change.
+- Timestamped backups in ~/.pharos/backups/ and one-command undo.
+- Path allowlist with hard deny elsewhere; symlinks resolved.
+- Pharos never runs sudo; it prints the command for the user to run.
+- The model can only call a fixed set of tools, not a free shell.
+
+ADAPTION (OPTIONAL)
+TODO: keep or delete. If used: synthetic training data generated with
+Adaption, a small model trained with Adaption AutoScientist, evaluated
+against the base model on a held-out set, available via
+"pharos --backend local". Results are reported in the README.
+
+TRY IT IN 10 SECONDS
+  pipx install git+https://github.com/YashmitVaish/pharos
+  export BHARATCODE_API_KEY="your-key"   (TODO: confirm variable name)
+  pharos demo
+"pharos demo" runs on a bundled sample folder and never touches real files.
+
+NOTES
+- No secrets, tokens, private links or private user data are included
+  in this repository.
+- License: MIT.
