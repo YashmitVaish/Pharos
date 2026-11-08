@@ -1,0 +1,13 @@
+# Sample shell config used by `pharos demo`.
+export PATH="$HOME/bin:$PATH:$HOME/bin"
+export API_TOKEN=demo-not-a-real-secret-123
+
+alias ll='ls -alF'
+alias gs='git status'
+alias gs='git status -sb'
+alias oldserver='ssh admin@decommissioned.example.com'
+
+# slow: runs on every new terminal
+eval "$(ssh-agent -s)" > /dev/null
+[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+source <(kubectl completion bash 2>/dev/null)

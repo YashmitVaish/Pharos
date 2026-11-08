@@ -1,0 +1,6 @@
+# Sample fstab used by `pharos demo`.
+UUID=1111-AAAA  /boot/efi  vfat  umask=0077           0  1
+UUID=2222-BBBB  /          ext4  errors=remount-ro    0  1
+UUID=3333-CCCC  none       swap  sw                   0  0
+UUID=4444-DDDD  /data      ext4  defaults             0  2
+//nas.local/share  /mnt/nas  cifs  username=guest,password=guest123  0  0
