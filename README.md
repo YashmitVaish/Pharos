@@ -20,25 +20,25 @@ Built for the [BharatCode Build League](https://bharatcode.ai), powered by the B
 
 Pharos explains configuration files and individual settings in plain English, including shell history, terminal behaviour, environment settings, and more.
 
-![Bash Configuration Explanation](docs/screenshots/01-bashrc-explanation.png)
+![Bash Configuration Explanation](docs/01-bashrc-explanation.png)
 
 ### 2. Configuration Discovery
 
 Finds and explains the configuration file responsible for a particular system setting.
 
-![Git Configuration Discovery](docs/screenshots/03-git-config-discovery.png)
+![Git Configuration Discovery](docs/03-git-config-discovery.png)
 
 ### 3. Security Boundaries
 
 Sensitive system files are blocked, even when explicitly requested.
 
-![Sensitive File Access Blocked](docs/screenshots/04-shadow-access-blocked.png)
+![Sensitive File Access Blocked](docs/04-shadow-access-blocked.png)
 
 ### 4. Safe Configuration Changes
 
 Every proposed modification is displayed as a diff before approval. Changes are backed up and can be reverted using `pharos undo`.
 
-![Safe SSH Configuration Edit](docs/screenshots/04-safe-ssh-edit-and-undo.png)
+![Safe SSH Configuration Edit](docs/04-safe-ssh-edit-and-undo.png)
 
 ---
 
