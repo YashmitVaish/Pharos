@@ -9,14 +9,21 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .notes import notes_for
 from .safety import MAX_READ_BYTES, Policy, SafetyError, deny_reason, redact
 
+NOTES_MARKER = "=== PHAROS NOTES (trusted Ubuntu reference, not part of the file) ==="
 MAX_LIST = 200
 MAX_HITS = 50
 MAX_FILES_SCANNED = 5000
 MAX_SEARCH_FILE_BYTES = 256 * 1024
 MAX_CMD_OUTPUT = 8 * 1024
 _UNIT_RE = re.compile(r"^[A-Za-z0-9@._\-]{1,100}$")
+_MAN_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+\-]{0,60}$")
+_MAN_SECTION_RE = re.compile(r"^[1-8]$")
+_PKG_RE = re.compile(r"^[a-z0-9][a-z0-9+.\-]{0,80}$")
+MAX_MAN_CHARS = 8 * 1024
+MAX_MAN_MATCH_CHARS = 3 * 1024
 
 
 class ToolError(Exception):
@@ -57,6 +64,15 @@ _READ_SCHEMAS = [
         {"unit": _STR}, ["unit"]),
     _fn("journal_tail", "Show the last lines of a service's journal (max 100).",
         {"unit": _STR, "lines": {"type": "integer"}}, ["unit"]),
+    _fn("man_page",
+        "Read the installed man page for a command or config file, e.g. name=sshd_config "
+        "section=5 query=PermitRootLogin. Use query to get only the matching paragraphs. "
+        "This is the authoritative reference for this machine's version.",
+        {"name": _STR, "section": {"type": "string", "description": "1-8, optional"},
+         "query": {"type": "string", "description": "keyword to look for, optional"}},
+        ["name"]),
+    _fn("package_version", "Show the installed version of a Debian/Ubuntu package.",
+        {"name": _STR}, ["name"]),
 ]
 
 _EDIT_SCHEMA = _fn(
@@ -68,7 +84,10 @@ _EDIT_SCHEMA = _fn(
     ["path", "old_text", "new_text", "reason"],
 )
 
-READ_TOOLS = {"list_dir", "read_file", "search_files", "service_status", "journal_tail"}
+READ_TOOLS = {
+    "list_dir", "read_file", "search_files", "service_status", "journal_tail",
+    "man_page", "package_version",
+}
 
 
 class ToolBox:
@@ -133,7 +152,11 @@ class ToolBox:
         header = f"# {real}" + (f"  ({n} secret value(s) redacted)" if n else "")
         if truncated:
             text += "\n# [truncated at 64 KB]"
-        return header + "\n" + text
+        out = header + "\n" + text
+        notes = notes_for(real)
+        if notes:
+            out += f"\n\n{NOTES_MARKER}\n{notes}"
+        return out
 
     def _iter_files(self, path: str):
         scanned = 0
@@ -183,14 +206,23 @@ class ToolBox:
                         return "\n".join(hits) + "\n... (more matches not shown)"
         return "\n".join(hits) if hits else "no matches"
 
-    def _run(self, argv: list[str]) -> str:
+    def _exec(self, argv: list[str], extra_env: dict[str, str] | None = None) -> tuple[int, str]:
+        """Run a fixed command (no shell). Returns (exit code, stdout + stderr)."""
         if not shutil.which(argv[0]):
             raise ToolError(f"{argv[0]} is not available on this system")
+        env = {**os.environ, **(extra_env or {})}
         try:
-            r = subprocess.run(argv, capture_output=True, text=True, timeout=10, check=False)
+            r = subprocess.run(
+                argv, capture_output=True, text=True, timeout=10, check=False, env=env,
+                errors="replace",
+            )
         except subprocess.TimeoutExpired:
             raise ToolError("command timed out")
-        out, _ = redact((r.stdout + r.stderr).strip())
+        return r.returncode, (r.stdout + r.stderr).strip()
+
+    def _run(self, argv: list[str]) -> str:
+        _, raw = self._exec(argv)
+        out, _ = redact(raw)
         return out[:MAX_CMD_OUTPUT] or "(no output)"
 
     def service_status(self, unit: str) -> str:
@@ -203,6 +235,46 @@ class ToolBox:
             raise ToolError("invalid unit name")
         n = max(1, min(int(lines), 100))
         return self._run(["journalctl", "-u", unit, "-n", str(n), "--no-pager"])
+
+    @staticmethod
+    def _clean_man(text: str) -> str:
+        text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)  # ANSI colours
+        return re.sub(r".\x08", "", text)  # nroff bold/underline overstrikes
+
+    @staticmethod
+    def _man_matches(text: str, query: str) -> str:
+        q = query.strip().lower()
+        blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if q in b.lower()]
+        if not blocks:
+            return f"no paragraph mentions '{query}' in this man page"
+        out, used = [], 0
+        for b in blocks:
+            if used + len(b) > MAX_MAN_MATCH_CHARS and out:
+                break
+            out.append(b[:MAX_MAN_MATCH_CHARS])
+            used += len(b)
+        return "\n\n".join(out)
+
+    def man_page(self, name: str, section: str = "", query: str = "") -> str:
+        if not _MAN_NAME_RE.match(name):
+            raise ToolError("invalid man page name")
+        if section and not _MAN_SECTION_RE.match(str(section)):
+            raise ToolError("section must be a single digit 1-8")
+        argv = ["man", "-P", "cat"] + ([str(section)] if section else []) + [name]
+        code, raw = self._exec(argv, {"MANWIDTH": "100", "LC_ALL": "C.UTF-8"})
+        if code != 0:
+            return f"error: {raw[:300] or 'no manual entry'}"
+        text = self._clean_man(raw)
+        body = self._man_matches(text, query) if query.strip() else text[:MAX_MAN_CHARS]
+        return f"# man {section + ' ' if section else ''}{name}\n{body}"
+
+    def package_version(self, name: str) -> str:
+        if not _PKG_RE.match(name):
+            raise ToolError("invalid package name")
+        code, raw = self._exec(
+            ["dpkg-query", "-W", "-f=${Package} ${Version} (${db:Status-Abbrev})\n", name]
+        )
+        return raw[:300] if code == 0 else f"{name}: not installed or unknown package"
 
     def propose_edit(self, path: str, old_text: str, new_text: str, reason: str) -> str:
         real = self.policy.resolve(path)

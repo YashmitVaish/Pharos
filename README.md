@@ -36,8 +36,18 @@ uv run pharos --dry-run demo
 | `pharos propose "<goal>"` | Shows a diff with a reason; applies it only after you confirm |
 | `pharos undo` | Restores the most recent change from its backup |
 | `pharos demo` | Runs on a safe sample folder |
+| `pharos <plain words>` | Same as `pharos ask ...`: just type what you want, e.g. `pharos "why is my terminal slow to start"` |
 
 Options: `--dry-run`, `--root <folder>` (sandbox: Pharos can only see that folder), `--model <name>`.
+
+## Built for Ubuntu
+
+A general AI model can be confidently wrong about version-specific Ubuntu behaviour, so Pharos does not rely on its memory:
+
+- **It knows your machine.** Every request carries one line such as the Ubuntu version, codename, kernel and init system (no hostname, username or IP).
+- **It reads the real manual.** The `man_page` tool returns the man page installed on your system (filtered by keyword), and `package_version` returns installed versions.
+- **Curated Ubuntu notes** are attached when it reads a matching file. They cover common traps, such as SSH drop-ins in `sshd_config.d` overriding the main file, `ssh.socket` on 24.04 ignoring a `Port` change until `daemon-reload`, the deb822 `ubuntu.sources` format, and `netplan try` before `netplan apply`. The notes live in `src/pharos/notes/*.md` with their sources in comments, and can be reviewed and extended by anyone.
+- After a proposed change it prints the validation command (for example `sudo sshd -t`).
 
 <!-- TODO: paste a real terminal session here once recorded -->
 
@@ -52,7 +62,7 @@ Safety is the main feature, not an add-on.
 5. **Hard deny list.** Private keys, `.env` files, `.gnupg`, `.aws`, browser profiles, `/etc/shadow` and similar are never readable, even inside the allowlist.
 6. **Secrets stay local.** Passwords, tokens, private keys and URL credentials are redacted before anything is sent to the API. Redacted values show as `[REDACTED]`, and Pharos refuses edits that touch them.
 7. **No privilege escalation.** Pharos never runs `sudo`. If a file needs root, it saves the proposed file and prints the exact `sudo cp ...` command for you to read and run yourself.
-8. **No free shell.** The model has a fixed set of tools: `list_dir`, `read_file`, `search_files`, `service_status`, `journal_tail` and `propose_edit`. Service names are validated and commands run without a shell.
+8. **No free shell.** The model has a fixed set of tools: `list_dir`, `read_file`, `search_files`, `service_status`, `journal_tail`, `man_page`, `package_version` and `propose_edit`. Names are validated and commands run without a shell.
 9. **Files are data, not instructions.** The system prompt tells the model to ignore instructions found inside files and logs.
 10. **Size caps** on file reads (64 KB), search results and command output.
 
@@ -107,7 +117,7 @@ tests/
 - Pharos is not a substitute for real backups of important systems.
 - Edits are exact text replacements; very large files (over 64 KB) are not edited.
 - Dotfiles that are symlinks into another folder (for example a dotfiles repo) are blocked, because the real path is outside the allowlist.
-- Tested on Ubuntu only. <!-- TODO: state the versions you tested -->
+- Tested on Ubuntu 26.04 only.
 
 ## Roadmap
 

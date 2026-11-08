@@ -20,7 +20,13 @@ afraid to edit files under /etc or their dotfiles.
 HOW BHARATCODE IS USED
 - Every model call (explaining files, diagnosing symptoms, proposing
   diffs, tool calls) goes through the BharatCode model API.
-- Model(s) used: TODO: fill in the BharatCode model name(s).
+- Tools the model can call: list_dir, read_file, search_files,
+  service_status, journal_tail, man_page, package_version, propose_edit.
+  Nothing else.
+- Ubuntu grounding: each request carries the machine's Ubuntu version,
+  the model can read the installed man pages, and curated Ubuntu notes
+  (src/pharos/notes) are attached when it reads a matching file, so
+  advice does not depend on the model's memory of Ubuntu internals.
 - The model is behind one small interface (pharos/model.py).
 - Secrets (private keys, tokens, .env values, password fields) are
   redacted locally before any request is sent. "--dry-run" shows exactly
@@ -33,12 +39,6 @@ SAFETY DESIGN
 - Path allowlist with hard deny elsewhere; symlinks resolved.
 - Pharos never runs sudo; it prints the command for the user to run.
 - The model can only call a fixed set of tools, not a free shell.
-
-ADAPTION (OPTIONAL)
-TODO: keep or delete. If used: synthetic training data generated with
-Adaption, a small model trained with Adaption AutoScientist, evaluated
-against the base model on a held-out set, available via
-"pharos --backend local". Results are reported in the README.
 
 TRY IT IN 10 SECONDS
   pipx install git+https://github.com/YashmitVaish/pharos

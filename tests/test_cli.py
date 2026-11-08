@@ -1,4 +1,45 @@
-from pharos.cli import build_parser, main
+from pharos.cli import build_parser, main, route
+
+
+def test_plain_words_become_ask():
+    assert route(["hi"]) == (["ask", "hi"], None)
+    assert route(["why", "is", "wifi", "slow"]) == (["why", "is", "wifi", "slow"], None)
+    assert route(["is", "my", "ssh", "safe"]) == (["ask", "is", "my", "ssh", "safe"], None)
+
+
+def test_flags_before_plain_words_are_kept():
+    argv, hint = route(["--dry-run", "--root", "/tmp/x", "hello", "there"])
+    assert argv == ["--dry-run", "--root", "/tmp/x", "ask", "hello", "there"] and hint is None
+
+
+def test_known_commands_and_help_are_untouched():
+    for argv in (["explain", "x"], ["--help"], ["undo"], ["--version"], []):
+        assert route(argv) == (argv, None)
+
+
+def test_mistyped_command_gets_a_suggestion_not_a_model_call():
+    assert route(["exlain"]) == (["exlain"], "explain")
+    assert route(["undoo"])[1] == "undo"
+    assert route(["hi"])[1] is None
+
+
+def test_typo_prints_did_you_mean(capsys):
+    assert main(["exlain"]) == 2
+    assert "Did you mean" in capsys.readouterr().out
+
+
+def test_ask_dry_run_end_to_end(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("PHAROS_HOME", str(tmp_path / "ph"))
+    monkeypatch.delenv("BHARATCODE_API_KEY", raising=False)
+    code = main(["--dry-run", "--root", str(tmp_path), "hello", "there"])
+    assert code == 0
+    assert "Dry run" in capsys.readouterr().out
+
+
+def test_blocked_path_shows_how_to_use_root(capsys):
+    assert main(["--dry-run", "explain", "/tmp/definitely-not-allowed"]) == 2
+    out = capsys.readouterr().out
+    assert "Blocked" in out and "--root" in out
 
 
 def test_options_work_before_and_after_subcommand():
