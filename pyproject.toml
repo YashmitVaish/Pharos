@@ -1,25 +1,29 @@
 [project]
 name = "pharos"
 version = "0.1.0"
-description = "Add your description here"
+description = "A lighthouse for your Linux configs: an AI helper that explains and safely edits them."
 readme = "README.md"
-authors = [
-    { name = "Yashmit", email = "yashmitvaish4454@gmail.com" }
-]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Yashmit Vaish" }]
 dependencies = [
-    "httpx>=0.28.1",
-    "rich>=15.0.0",
+    "httpx>=0.27",
+    "rich>=13",
 ]
 
 [project.scripts]
-pharos = "pharos:main"
-
-[build-system]
-requires = ["uv_build>=0.12.12,<0.13.0"]
-build-backend = "uv_build"
+pharos = "pharos.cli:main"
 
 [dependency-groups]
-dev = [
-    "pytest>=9.2.0",
-]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pharos"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
